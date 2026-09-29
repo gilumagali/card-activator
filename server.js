@@ -122,7 +122,8 @@ async function activateCard(token, code) {
 
   const html = await response.text();
   const message = pageMessage(html);
-  const failed = response.status >= 400 || /\b(error|invalid|incorrect|already used|not valid)\b/i.test(message);
+  const failed = response.status >= 400
+    || /\b(error|invalid|incorrect|already (?:used|redeemed)|not valid)\b/i.test(message);
 
   return {
     ok: !failed,

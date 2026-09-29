@@ -16,3 +16,10 @@ test('validates and normalizes activation input', () => {
 test('extracts a useful response message', () => {
   assert.equal(pageMessage('<div class="alert"> Card activated successfully </div>'), 'Card activated successfully');
 });
+
+test('treats Panini already-redeemed responses as failures', () => {
+  assert.match(
+    'Code already redeemed.',
+    /\b(error|invalid|incorrect|already (?:used|redeemed)|not valid)\b/i,
+  );
+});
