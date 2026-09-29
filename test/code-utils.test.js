@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildCardCodeConsensus,
+  countCharacterDifferences,
   extractCardCode,
   extractCardCodes,
   expandDottedFontAlternatives,
   formatCode,
   normalizeCode,
   rankCardCodeReadings,
+  repairDottedFontConsensus,
 } from '../src/code-utils.js';
 
 test('normalizes and formats card codes', () => {
@@ -46,6 +49,19 @@ test('suggests common dotted-font OCR alternatives', () => {
   assert.ok(alternatives.includes('ABCDU2HL546R'));
   assert.ok(alternatives.includes('ABCDVZHL546R'));
   assert.ok(!alternatives.includes('ABCDUZHL546R'));
+});
+
+test('combines and repairs repeated dotted-font OCR readings', () => {
+  const consensus = buildCardCodeConsensus([
+    'PUMMUZHL546R',
+    'PUWMUZHL546R',
+    'PUWWU2HL546R',
+  ]);
+
+  assert.equal(consensus, 'PUWMUZHL546R');
+  assert.equal(repairDottedFontConsensus(consensus), 'PWWMV2HL546R');
+  assert.equal(repairDottedFontConsensus('PUMMUZHLS4ER'), 'PWWMV2HL546R');
+  assert.equal(countCharacterDifferences('PUMMUZHLS4ER', 'PWWMV2HL546R'), 6);
 });
 
 test('rejects OCR text without a complete code', () => {

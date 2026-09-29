@@ -1,9 +1,12 @@
 import { createWorker, PSM } from 'tesseract.js';
 import {
+  buildCardCodeConsensus,
+  countCharacterDifferences,
   expandDottedFontAlternatives,
   formatCode,
   normalizeCode,
   rankCardCodeReadings,
+  repairDottedFontConsensus,
 } from './code-utils.js';
 import './style.css';
 
@@ -125,8 +128,8 @@ function captureCodeArea() {
   return canvas;
 }
 
-function cropLikelyCodeBand(source) {
-  const bestY = Math.round(source.height * 0.42);
+function cropCodeBand(source, topRatio) {
+  const bestY = Math.round(source.height * topRatio);
   const bandHeight = source.height - bestY;
 
   const band = document.createElement('canvas');
@@ -206,13 +209,15 @@ async function scanCode() {
   try {
     const ocr = await getWorker();
     const readings = [];
-    const codeBand = cropLikelyCodeBand(captureCodeArea());
-    renderScanPreview(codeBand);
+    const capture = captureCodeArea();
+    const previewBand = cropCodeBand(capture, 0.42);
+    renderScanPreview(previewBand);
     const captures = [
-      createOcrVariant(codeBand, { contrast: 2.4 }),
-      createOcrVariant(codeBand, { contrast: 2.6, blur: 0.6, threshold: 190 }),
-      createOcrVariant(codeBand, { contrast: 2.2, blur: 0.8, threshold: 210 }),
-      createOcrVariant(codeBand, { contrast: 3, threshold: 225 }),
+      createOcrVariant(cropCodeBand(capture, 0.42), { contrast: 2, blur: 4, threshold: 190 }),
+      createOcrVariant(cropCodeBand(capture, 0.42), { contrast: 2, blur: 4, threshold: 210 }),
+      createOcrVariant(cropCodeBand(capture, 0.48), { contrast: 2, blur: 3, threshold: 210 }),
+      createOcrVariant(cropCodeBand(capture, 0.52), { contrast: 2, blur: 3, threshold: 210 }),
+      createOcrVariant(cropCodeBand(capture, 0.52), { contrast: 2, blur: 4, threshold: 190 }),
     ];
 
     for (let index = 0; index < captures.length; index += 1) {
@@ -233,7 +238,36 @@ async function scanCode() {
       return;
     }
 
-    const knownCodes = new Set(ranked.map(({ code }) => code));
+    const consensus = buildCardCodeConsensus(ranked.map(({ code }) => code));
+    const repairedConsensus = repairDottedFontConsensus(consensus);
+    const repairedReadings = ranked
+      .map(({ code }) => {
+        const repaired = repairDottedFontConsensus(code);
+        return {
+          code: repaired,
+          differences: countCharacterDifferences(code, repaired),
+        };
+      })
+      .filter(({ code, differences }) => code && differences > 0)
+      .sort((left, right) => right.differences - left.differences);
+    const preferredCodes = [
+      ...repairedReadings.map(({ code }) => code),
+      repairedConsensus,
+      consensus,
+    ].filter(Boolean);
+    const knownCodes = new Set();
+    const preferredOptions = preferredCodes
+      .filter((code) => {
+        if (knownCodes.has(code)) return false;
+        knownCodes.add(code);
+        return true;
+      })
+      .map((code) => ({ code }));
+    const rankedOptions = ranked.filter(({ code }) => {
+      if (knownCodes.has(code)) return false;
+      knownCodes.add(code);
+      return true;
+    });
     const dottedFontAlternatives = ranked
       .slice(0, 2)
       .flatMap(({ code }) => expandDottedFontAlternatives(code))
@@ -243,9 +277,9 @@ async function scanCode() {
         return true;
       })
       .map((code) => ({ code }));
-    const options = [...ranked, ...dottedFontAlternatives];
+    const options = [...preferredOptions, ...rankedOptions, ...dottedFontAlternatives];
 
-    codeInput.value = formatCode(ranked[0].code);
+    codeInput.value = formatCode(options[0].code);
     renderScanOptions(options);
     setStatus(
       options.length > 1

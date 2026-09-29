@@ -49,6 +49,45 @@ export function rankCardCodeReadings(readings) {
   ));
 }
 
+export function buildCardCodeConsensus(codes) {
+  const normalized = codes.map(normalizeCode).filter((code) => code.length === 12);
+  if (!normalized.length) return '';
+
+  return Array.from({ length: 12 }, (_, index) => {
+    const counts = new Map();
+    for (const code of normalized) {
+      counts.set(code[index], (counts.get(code[index]) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0][0];
+  }).join('');
+}
+
+export function repairDottedFontConsensus(value) {
+  const code = normalizeCode(value);
+  if (code.length !== 12) return '';
+
+  const groups = [code.slice(0, 4), code.slice(4, 8), code.slice(8, 12)];
+  groups[0] = groups[0].replace(/^(.?)U(?=[LMW])/, '$1W');
+  if (/^.[W][ML][ML]$/.test(groups[0])) {
+    groups[0] = `${groups[0].slice(0, 2)}W${groups[0][3] === 'L' ? 'M' : groups[0][3]}`;
+  }
+  groups[1] = groups[1].replace(/^UZ/, 'V2');
+  groups[2] = groups[2]
+    .replace(/^[SB]/, '5')
+    .replace(/^(.{2})[EG]/, '$16');
+  return groups.join('');
+}
+
+export function countCharacterDifferences(left, right) {
+  const first = normalizeCode(left);
+  const second = normalizeCode(right);
+  if (first.length !== second.length) return Math.max(first.length, second.length);
+  return [...first].reduce((count, character, index) => (
+    count + (character === second[index] ? 0 : 1)
+  ), 0);
+}
+
 const dottedFontConfusions = {
   U: ['V', 'W'],
   V: ['U'],
