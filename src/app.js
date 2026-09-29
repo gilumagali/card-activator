@@ -18,6 +18,8 @@ const activateButton = document.querySelector('#activate');
 const status = document.querySelector('#status');
 const progress = document.querySelector('#ocr-progress');
 const progressBar = document.querySelector('#ocr-progress-bar');
+const scanPreview = document.querySelector('#scan-preview');
+const scanPreviewCanvas = document.querySelector('#scan-preview-canvas');
 const scanOptions = document.querySelector('#scan-options');
 const pagesNote = document.querySelector('#pages-note');
 const staticOnly = import.meta.env.VITE_STATIC_ONLY === 'true';
@@ -94,18 +96,16 @@ function guideSourceRect() {
 
   return {
     x: visibleX + visibleWidth * 0.04,
-    y: visibleY + visibleHeight * 0.39,
+    y: visibleY + visibleHeight * 0.34,
     width: visibleWidth * 0.92,
-    height: visibleHeight * 0.22,
+    height: visibleHeight * 0.34,
   };
 }
 
-function captureCodeArea(heightRatio = 0.62) {
+function captureCodeArea() {
   const guide = guideSourceRect();
-  const cropHeight = guide.height * heightRatio;
-  const sourceY = guide.y + (guide.height - cropHeight) / 2;
   const targetWidth = Math.min(2600, Math.max(1600, Math.round(guide.width * 2.5)));
-  const targetHeight = Math.round(targetWidth * (cropHeight / guide.width));
+  const targetHeight = Math.round(targetWidth * (guide.height / guide.width));
 
   canvas.width = targetWidth;
   canvas.height = targetHeight;
@@ -114,15 +114,36 @@ function captureCodeArea(heightRatio = 0.62) {
   context.drawImage(
     camera,
     guide.x,
-    sourceY,
+    guide.y,
     guide.width,
-    cropHeight,
+    guide.height,
     0,
     0,
     canvas.width,
     canvas.height,
   );
   return canvas;
+}
+
+function cropLikelyCodeBand(source) {
+  const bestY = Math.round(source.height * 0.42);
+  const bandHeight = source.height - bestY;
+
+  const band = document.createElement('canvas');
+  band.width = source.width;
+  band.height = bandHeight;
+  band.getContext('2d').drawImage(
+    source,
+    0,
+    bestY,
+    source.width,
+    bandHeight,
+    0,
+    0,
+    band.width,
+    band.height,
+  );
+  return band;
 }
 
 function createOcrVariant(source, { contrast = 2, blur = 0, threshold = null } = {}) {
@@ -145,6 +166,13 @@ function createOcrVariant(source, { contrast = 2, blur = 0, threshold = null } =
   }
 
   return variant;
+}
+
+function renderScanPreview(source) {
+  scanPreviewCanvas.width = source.width;
+  scanPreviewCanvas.height = source.height;
+  scanPreviewCanvas.getContext('2d').drawImage(source, 0, 0);
+  scanPreview.hidden = false;
 }
 
 function renderScanOptions(ranked) {
@@ -171,17 +199,20 @@ function renderScanOptions(ranked) {
 async function scanCode() {
   scanButton.disabled = true;
   scanOptions.hidden = true;
+  scanPreview.hidden = true;
   setStatus('Reading the card code...');
   setProgress(0);
 
   try {
     const ocr = await getWorker();
     const readings = [];
+    const codeBand = cropLikelyCodeBand(captureCodeArea());
+    renderScanPreview(codeBand);
     const captures = [
-      createOcrVariant(captureCodeArea(0.65), { contrast: 2.4 }),
-      createOcrVariant(captureCodeArea(0.8), { contrast: 2.6, blur: 0.6, threshold: 190 }),
-      createOcrVariant(captureCodeArea(1), { contrast: 2.2, blur: 0.8, threshold: 210 }),
-      createOcrVariant(captureCodeArea(0.75), { contrast: 3, threshold: 225 }),
+      createOcrVariant(codeBand, { contrast: 2.4 }),
+      createOcrVariant(codeBand, { contrast: 2.6, blur: 0.6, threshold: 190 }),
+      createOcrVariant(codeBand, { contrast: 2.2, blur: 0.8, threshold: 210 }),
+      createOcrVariant(codeBand, { contrast: 3, threshold: 225 }),
     ];
 
     for (let index = 0; index < captures.length; index += 1) {
@@ -192,10 +223,14 @@ async function scanCode() {
       });
       setProgress((index + 1) / captures.length);
     }
-
     const ranked = rankCardCodeReadings(readings);
     if (!ranked.length) {
-      throw new Error('No 12-character code found. Move closer, improve the lighting, and try again.');
+      setStatus(
+        'Automatic OCR could not confirm all 12 characters. Read the enlarged capture and type the code below.',
+        'warning',
+      );
+      codeInput.focus();
+      return;
     }
 
     const knownCodes = new Set(ranked.map(({ code }) => code));
