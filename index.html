@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121826" />
+    <title>Panini Card Activator</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header>
+        <p class="eyebrow">Adrenalyn XL</p>
+        <h1>Scan and activate a card</h1>
+        <p class="subtitle">Point the camera at the 12-character code, check the result, then activate it.</p>
+      </header>
+
+      <section class="camera-card">
+        <div class="camera-frame">
+          <video id="camera" playsinline muted></video>
+          <div class="scan-guide" aria-hidden="true">
+            <span>Place the card code here</span>
+          </div>
+          <canvas id="capture" hidden></canvas>
+        </div>
+        <div class="camera-actions">
+          <button id="start-camera" class="secondary" type="button">Start camera</button>
+          <button id="scan-code" type="button" disabled>Scan code</button>
+        </div>
+        <div id="ocr-progress" class="progress" hidden>
+          <div id="ocr-progress-bar"></div>
+        </div>
+      </section>
+
+      <form id="activation-form">
+        <label for="token">Your Adrenalyn XL token</label>
+        <input id="token" name="token" autocomplete="off" maxlength="6" required />
+
+        <label for="card-code">Card code</label>
+        <input
+          id="card-code"
+          name="code"
+          placeholder="XXXX XXXX XXXX"
+          autocomplete="off"
+          autocapitalize="characters"
+          maxlength="14"
+          required
+        />
+
+        <button id="activate" type="submit">Activate card</button>
+      </form>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <p id="pages-note" class="pages-note" hidden>
+        GitHub Pages cannot submit directly to Panini. Activate will copy the scanned code and open Panini, where you can paste it and submit.
+      </p>
+      <p class="privacy">The camera image stays on this device. Only the token and code are sent to Panini when you activate.</p>
+    </main>
+
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>

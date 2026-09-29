@@ -1,0 +1,22 @@
+{
+  "name": "panini-card-activator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"node --watch server.js\" \"vite\"",
+    "build": "vite build",
+    "build:pages": "VITE_STATIC_ONLY=true VITE_ADRENALYN_TOKEN= GITHUB_PAGES_BUILD=true vite build",
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "express": "^5.1.0",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "vite": "^7.1.7"
+  }
+}
