@@ -11,14 +11,14 @@
       <header>
         <p class="eyebrow">Adrenalyn XL</p>
         <h1>Scan and activate a card</h1>
-        <p class="subtitle">Point the camera at the 12-character code, check the result, then activate it.</p>
+        <p class="subtitle">Fill the yellow box with only the 12-character code, check the result, then activate it.</p>
       </header>
 
       <section class="camera-card">
         <div class="camera-frame">
           <video id="camera" playsinline muted></video>
           <div class="scan-guide" aria-hidden="true">
-            <span>Place the card code here</span>
+            <span>Code only — move closer</span>
           </div>
           <canvas id="capture" hidden></canvas>
         </div>
@@ -29,6 +29,7 @@
         <div id="ocr-progress" class="progress" hidden>
           <div id="ocr-progress-bar"></div>
         </div>
+        <div id="scan-options" class="scan-options" hidden></div>
       </section>
 
       <form id="activation-form">

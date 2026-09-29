@@ -1,5 +1,10 @@
-import { createWorker } from 'tesseract.js';
-import { extractCardCode, formatCode, normalizeCode } from './code-utils.js';
+import { createWorker, PSM } from 'tesseract.js';
+import {
+  expandDottedFontAlternatives,
+  formatCode,
+  normalizeCode,
+  rankCardCodeReadings,
+} from './code-utils.js';
 import './style.css';
 
 const camera = document.querySelector('#camera');
@@ -13,6 +18,7 @@ const activateButton = document.querySelector('#activate');
 const status = document.querySelector('#status');
 const progress = document.querySelector('#ocr-progress');
 const progressBar = document.querySelector('#ocr-progress-bar');
+const scanOptions = document.querySelector('#scan-options');
 const pagesNote = document.querySelector('#pages-note');
 const staticOnly = import.meta.env.VITE_STATIC_ONLY === 'true';
 const defaultToken = import.meta.env.VITE_ADRENALYN_TOKEN || 'WYJ715';
@@ -45,8 +51,10 @@ async function getWorker() {
       },
     });
     await worker.setParameters({
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+      tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
       preserve_interword_spaces: '1',
+      user_defined_dpi: '300',
     });
   }
   return worker;
@@ -56,7 +64,11 @@ async function startCamera() {
   try {
     stream?.getTracks().forEach((track) => track.stop());
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } },
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
+      },
       audio: false,
     });
     camera.srcObject = stream;
@@ -69,24 +81,41 @@ async function startCamera() {
   }
 }
 
-function captureCodeArea() {
+function guideSourceRect() {
   const sourceWidth = camera.videoWidth;
   const sourceHeight = camera.videoHeight;
-  const cropWidth = Math.round(sourceWidth * 0.92);
-  const cropHeight = Math.round(sourceHeight * 0.34);
-  const sourceX = Math.round((sourceWidth - cropWidth) / 2);
-  const sourceY = Math.round((sourceHeight - cropHeight) / 2);
-  const scale = 2;
+  const frameWidth = camera.clientWidth;
+  const frameHeight = camera.clientHeight;
+  const coverScale = Math.max(frameWidth / sourceWidth, frameHeight / sourceHeight);
+  const visibleWidth = frameWidth / coverScale;
+  const visibleHeight = frameHeight / coverScale;
+  const visibleX = (sourceWidth - visibleWidth) / 2;
+  const visibleY = (sourceHeight - visibleHeight) / 2;
 
-  canvas.width = cropWidth * scale;
-  canvas.height = cropHeight * scale;
+  return {
+    x: visibleX + visibleWidth * 0.04,
+    y: visibleY + visibleHeight * 0.39,
+    width: visibleWidth * 0.92,
+    height: visibleHeight * 0.22,
+  };
+}
+
+function captureCodeArea(heightRatio = 0.62) {
+  const guide = guideSourceRect();
+  const cropHeight = guide.height * heightRatio;
+  const sourceY = guide.y + (guide.height - cropHeight) / 2;
+  const targetWidth = Math.min(2600, Math.max(1600, Math.round(guide.width * 2.5)));
+  const targetHeight = Math.round(targetWidth * (cropHeight / guide.width));
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   const context = canvas.getContext('2d', { willReadFrequently: true });
-  context.filter = 'grayscale(1) contrast(1.9)';
+  context.filter = 'none';
   context.drawImage(
     camera,
-    sourceX,
+    guide.x,
     sourceY,
-    cropWidth,
+    guide.width,
     cropHeight,
     0,
     0,
@@ -96,20 +125,99 @@ function captureCodeArea() {
   return canvas;
 }
 
+function createOcrVariant(source, { contrast = 2, blur = 0, threshold = null } = {}) {
+  const variant = document.createElement('canvas');
+  variant.width = source.width;
+  variant.height = source.height;
+  const context = variant.getContext('2d', { willReadFrequently: true });
+  context.filter = `grayscale(1) contrast(${contrast})${blur ? ` blur(${blur}px)` : ''}`;
+  context.drawImage(source, 0, 0);
+
+  if (threshold !== null) {
+    const image = context.getImageData(0, 0, variant.width, variant.height);
+    for (let index = 0; index < image.data.length; index += 4) {
+      const value = image.data[index] < threshold ? 0 : 255;
+      image.data[index] = value;
+      image.data[index + 1] = value;
+      image.data[index + 2] = value;
+    }
+    context.putImageData(image, 0, 0);
+  }
+
+  return variant;
+}
+
+function renderScanOptions(ranked) {
+  scanOptions.replaceChildren();
+  scanOptions.hidden = ranked.length < 2;
+  if (ranked.length < 2) return;
+
+  const label = document.createElement('p');
+  label.textContent = 'Possible reads — compare them with the card:';
+  scanOptions.append(label);
+
+  for (const candidate of ranked.slice(0, 8)) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = formatCode(candidate.code);
+    button.addEventListener('click', () => {
+      codeInput.value = formatCode(candidate.code);
+      setStatus('Alternative selected. Check every character before activating.', 'success');
+    });
+    scanOptions.append(button);
+  }
+}
+
 async function scanCode() {
   scanButton.disabled = true;
+  scanOptions.hidden = true;
   setStatus('Reading the card code...');
   setProgress(0);
 
   try {
     const ocr = await getWorker();
-    const result = await ocr.recognize(captureCodeArea());
-    const code = extractCardCode(result.data.text);
-    if (!code) {
+    const readings = [];
+    const captures = [
+      createOcrVariant(captureCodeArea(0.65), { contrast: 2.4 }),
+      createOcrVariant(captureCodeArea(0.8), { contrast: 2.6, blur: 0.6, threshold: 190 }),
+      createOcrVariant(captureCodeArea(1), { contrast: 2.2, blur: 0.8, threshold: 210 }),
+      createOcrVariant(captureCodeArea(0.75), { contrast: 3, threshold: 225 }),
+    ];
+
+    for (let index = 0; index < captures.length; index += 1) {
+      const result = await ocr.recognize(captures[index]);
+      readings.push({
+        text: result.data.text,
+        confidence: result.data.confidence,
+      });
+      setProgress((index + 1) / captures.length);
+    }
+
+    const ranked = rankCardCodeReadings(readings);
+    if (!ranked.length) {
       throw new Error('No 12-character code found. Move closer, improve the lighting, and try again.');
     }
-    codeInput.value = formatCode(code);
-    setStatus('Code found. Check it, then press Activate card.', 'success');
+
+    const knownCodes = new Set(ranked.map(({ code }) => code));
+    const dottedFontAlternatives = ranked
+      .slice(0, 2)
+      .flatMap(({ code }) => expandDottedFontAlternatives(code))
+      .filter((code) => {
+        if (knownCodes.has(code)) return false;
+        knownCodes.add(code);
+        return true;
+      })
+      .map((code) => ({ code }));
+    const options = [...ranked, ...dottedFontAlternatives];
+
+    codeInput.value = formatCode(ranked[0].code);
+    renderScanOptions(options);
+    setStatus(
+      options.length > 1
+        ? 'Several possible reads were found. Compare the choices with the card before activating.'
+        : 'Code found. Check every character, then press Activate card.',
+      options.length > 1 ? 'warning' : 'success',
+    );
     codeInput.focus();
   } catch (error) {
     setStatus(error.message, 'error');
@@ -121,6 +229,7 @@ async function scanCode() {
 
 codeInput.addEventListener('input', () => {
   codeInput.value = formatCode(codeInput.value);
+  scanOptions.hidden = true;
 });
 
 tokenInput.addEventListener('input', () => {

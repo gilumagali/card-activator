@@ -11,6 +11,8 @@ npm run dev
 
 Open `http://localhost:5173`. Camera access works on `localhost`. On another phone or computer, use HTTPS because browsers block camera access on ordinary HTTP network addresses.
 
+For reliable OCR, move close enough that only the printed 12-character code fills the yellow guide. The scanner runs several local OCR passes and offers alternative readings when the dotted font is ambiguous.
+
 For a production build:
 
 ```bash

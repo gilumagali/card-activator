@@ -5,22 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#121826" />
     <title>Panini Card Activator</title>
-    <script type="module" crossorigin src="/card-activator/assets/index-DFkKY_06.js"></script>
-    <link rel="stylesheet" crossorigin href="/card-activator/assets/index-gxEKAA9d.css">
+    <script type="module" crossorigin src="/card-activator/assets/index-Bts-ZKON.js"></script>
+    <link rel="stylesheet" crossorigin href="/card-activator/assets/index-Bj8if2Be.css">
   </head>
   <body>
     <main class="app-shell">
       <header>
         <p class="eyebrow">Adrenalyn XL</p>
         <h1>Scan and activate a card</h1>
-        <p class="subtitle">Point the camera at the 12-character code, check the result, then activate it.</p>
+        <p class="subtitle">Fill the yellow box with only the 12-character code, check the result, then activate it.</p>
       </header>
 
       <section class="camera-card">
         <div class="camera-frame">
           <video id="camera" playsinline muted></video>
           <div class="scan-guide" aria-hidden="true">
-            <span>Place the card code here</span>
+            <span>Code only — move closer</span>
           </div>
           <canvas id="capture" hidden></canvas>
         </div>
@@ -31,6 +31,7 @@
         <div id="ocr-progress" class="progress" hidden>
           <div id="ocr-progress-bar"></div>
         </div>
+        <div id="scan-options" class="scan-options" hidden></div>
       </section>
 
       <form id="activation-form">
