@@ -15,12 +15,13 @@ const progress = document.querySelector('#ocr-progress');
 const progressBar = document.querySelector('#ocr-progress-bar');
 const pagesNote = document.querySelector('#pages-note');
 const staticOnly = import.meta.env.VITE_STATIC_ONLY === 'true';
+const defaultToken = import.meta.env.VITE_ADRENALYN_TOKEN || 'WYJ715';
 
 let stream;
 let worker;
 
 const savedToken = localStorage.getItem('adrenalyn-token');
-tokenInput.value = savedToken || import.meta.env.VITE_ADRENALYN_TOKEN || '';
+tokenInput.value = savedToken || defaultToken;
 if (staticOnly) {
   pagesNote.hidden = false;
   activateButton.textContent = 'Copy code & open Panini';

@@ -20,7 +20,7 @@ npm start
 
 Then open `http://localhost:3001`.
 
-The personal token is stored in `.env.local`, which is ignored by Git. After the first edit or activation, the browser remembers the token in local storage.
+The default token is hard-coded in the client app. After the first edit or activation, the browser remembers the token in local storage.
 
 ## GitHub Pages
 
