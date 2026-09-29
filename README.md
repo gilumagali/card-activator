@@ -11,7 +11,7 @@ npm run dev
 
 Open `http://localhost:5173`. Camera access works on `localhost`. On another phone or computer, use HTTPS because browsers block camera access on ordinary HTTP network addresses.
 
-For reliable OCR, move close enough that only the printed 12-character code fills the yellow guide. The scanner runs several local OCR passes and offers alternative readings when the dotted font is ambiguous. It also shows an enlarged local capture so the code can still be verified and entered when the font is too distorted for automatic OCR.
+For reliable OCR, move close enough that only the printed 12-character code fills the yellow guide. The scanner first segments the three four-character groups and reads the card's 5x7 dot-matrix glyphs directly at several brightness thresholds. It also runs Tesseract as a fallback, offers alternative readings when the font is ambiguous, and shows an enlarged local capture so every character can be verified before activation.
 
 For a production build:
 

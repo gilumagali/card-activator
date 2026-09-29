@@ -1,4 +1,5 @@
 import { createWorker, PSM } from 'tesseract.js';
+import { recognizeDotMatrixCode } from './dot-matrix-ocr.js';
 import {
   buildCardCodeConsensus,
   countCharacterDifferences,
@@ -212,6 +213,10 @@ async function scanCode() {
     const capture = captureCodeArea();
     const previewBand = cropCodeBand(capture, 0.42);
     renderScanPreview(previewBand);
+    const dotMatrixCode = recognizeDotMatrixCode(previewBand);
+    if (dotMatrixCode) {
+      readings.push({ text: formatCode(dotMatrixCode), confidence: 100 });
+    }
     const captures = [
       createOcrVariant(cropCodeBand(capture, 0.42), { contrast: 2, blur: 4, threshold: 190 }),
       createOcrVariant(cropCodeBand(capture, 0.42), { contrast: 2, blur: 4, threshold: 210 }),
@@ -251,9 +256,10 @@ async function scanCode() {
       .filter(({ code, differences }) => code && differences > 0)
       .sort((left, right) => right.differences - left.differences);
     const preferredCodes = [
-      ...repairedReadings.map(({ code }) => code),
+      dotMatrixCode,
       repairedConsensus,
       consensus,
+      ...repairedReadings.map(({ code }) => code),
     ].filter(Boolean);
     const knownCodes = new Set();
     const preferredOptions = preferredCodes
