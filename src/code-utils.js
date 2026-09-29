@@ -6,6 +6,13 @@ export function formatCode(value) {
   return normalizeCode(value).replace(/(.{4})(?=.)/g, '$1 ');
 }
 
+export function buildPaniniActivationUrl(token, code) {
+  const url = new URL('https://panadfl.paniniadrenalyn.com/code/new');
+  url.searchParams.set('adrenalyn_token', String(token || '').trim().toUpperCase());
+  url.searchParams.set('code', normalizeCode(code));
+  return url.toString();
+}
+
 export function extractCardCodes(text) {
   const uppercase = String(text || '').toUpperCase();
   const codes = new Set();

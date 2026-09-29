@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildPaniniActivationUrl,
   buildCardCodeConsensus,
   countCharacterDifferences,
   extractCardCode,
@@ -15,6 +16,15 @@ import {
 test('normalizes and formats card codes', () => {
   assert.equal(normalizeCode('ab12-cd34 ef56'), 'AB12CD34EF56');
   assert.equal(formatCode('ab12cd34ef56'), 'AB12 CD34 EF56');
+});
+
+test('builds a prefilled Panini activation URL', () => {
+  const url = new URL(buildPaniniActivationUrl('abc123', 'pwwm-v2hl-546r'));
+
+  assert.equal(url.origin, 'https://panadfl.paniniadrenalyn.com');
+  assert.equal(url.pathname, '/code/new');
+  assert.equal(url.searchParams.get('adrenalyn_token'), 'ABC123');
+  assert.equal(url.searchParams.get('code'), 'PWWMV2HL546R');
 });
 
 test('extracts grouped OCR card codes', () => {

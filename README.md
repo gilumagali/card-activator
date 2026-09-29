@@ -26,6 +26,6 @@ The default token is hard-coded in the client app. After the first edit or activ
 
 ## GitHub Pages
 
-The Pages build supports camera scanning over HTTPS. Because GitHub Pages cannot run a backend and Panini blocks cross-origin access, its Activate button copies the card code and opens Panini for the final paste and submission. The local/server build performs the complete activation inside this app.
+The Pages build supports camera scanning over HTTPS. Because GitHub Pages cannot run a backend and Panini protects activation with a session-bound CSRF token, its button opens Panini with the token and card code prefilled. Tap Activate once on Panini to submit. The local/server build performs the complete activation inside this app.
 
 To update the published site, run `npm run build:pages`, commit `docs/`, and push `main`.

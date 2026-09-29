@@ -1,6 +1,7 @@
 import { createWorker, PSM } from 'tesseract.js';
 import { recognizeDotMatrixCode } from './dot-matrix-ocr.js';
 import {
+  buildPaniniActivationUrl,
   buildCardCodeConsensus,
   countCharacterDifferences,
   expandDottedFontAlternatives,
@@ -36,7 +37,7 @@ const savedToken = localStorage.getItem('adrenalyn-token');
 tokenInput.value = savedToken || defaultToken;
 if (staticOnly) {
   pagesNote.hidden = false;
-  activateButton.textContent = 'Copy code & open Panini';
+  activateButton.textContent = 'Open prefilled Panini';
 }
 
 function setStatus(message, type = '') {
@@ -324,13 +325,8 @@ form.addEventListener('submit', async (event) => {
   localStorage.setItem('adrenalyn-token', token);
 
   if (staticOnly) {
-    try {
-      await navigator.clipboard.writeText(code);
-      setStatus('Card code copied. Paste it into the Panini page.', 'success');
-    } catch {
-      setStatus(`Copy this code on Panini: ${formatCode(code)}`, 'success');
-    }
-    window.open('https://panadfl.paniniadrenalyn.com/code/new', '_blank', 'noopener,noreferrer');
+    setStatus('Panini is opening with both fields filled. Tap Activate on the Panini page.', 'success');
+    window.location.assign(buildPaniniActivationUrl(token, code));
     return;
   }
 
